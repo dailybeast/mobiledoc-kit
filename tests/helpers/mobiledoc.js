@@ -2,7 +2,9 @@ import PostAbstractHelpers from './post-abstract';
 import mobiledocRenderers from 'mobiledoc-kit/renderers/mobiledoc';
 import MobiledocRenderer_0_2, { MOBILEDOC_VERSION as MOBILEDOC_VERSION_0_2 } from 'mobiledoc-kit/renderers/mobiledoc/0-2';
 import MobiledocRenderer_0_3, { MOBILEDOC_VERSION as MOBILEDOC_VERSION_0_3 } from 'mobiledoc-kit/renderers/mobiledoc/0-3';
+import MobiledocRenderer_0_3_1, { MOBILEDOC_VERSION as MOBILEDOC_VERSION_0_3_1 } from 'mobiledoc-kit/renderers/mobiledoc/0-3-1';
 import Editor from 'mobiledoc-kit/editor/editor';
+import Range from 'mobiledoc-kit/utils/cursor/range';
 import { mergeWithOptions } from 'mobiledoc-kit/utils/merge';
 
 /*
@@ -23,6 +25,8 @@ function build(treeFn, version) {
       return MobiledocRenderer_0_2.render(post);
     case MOBILEDOC_VERSION_0_3:
       return MobiledocRenderer_0_3.render(post);
+    case MOBILEDOC_VERSION_0_3_1:
+      return MobiledocRenderer_0_3_1.render(post);
     case undefined:
     case null:
       return mobiledocRenderers.render(post);
@@ -47,8 +51,19 @@ function renderInto(element, treeFn, editorOptions={}) {
   return editor;
 }
 
+// In Firefox, if the window isn't active (which can happen when running tests
+// at SauceLabs), the editor element won't have the selection. This helper method
+// ensures that it has a cursor selection.
+// See https://github.com/bustlelabs/mobiledoc-kit/issues/388
+function renderIntoAndFocusTail(editorElement, treeFn, options={}) {
+  let editor = renderInto(editorElement, treeFn, options);
+  editor.selectRange(new Range(editor.post.tailPosition()));
+  return editor;
+}
+
 export default {
   build,
   renderInto,
-  renderPostInto
+  renderPostInto,
+  renderIntoAndFocusTail
 };

@@ -1,17 +1,17 @@
 {
   "name": "mobiledoc-kit",
-  "version": "0.10.8",
+  "version": "0.10.14-0",
   "description": "A toolkit for building WYSIWYG editors with Mobiledoc",
   "repository": "https://github.com/bustlelabs/mobiledoc-kit",
   "scripts": {
-    "start": "broccoli serve",
-    "test:ci": "npm run docs && npm run build && testem ci -f testem-ci.json",
-    "test": "npm run docs && npm run build && testem ci -f testem.json",
+    "start": "broccoli serve --host 0.0.0.0",
+    "test:ci": "PATH=node_modules/phantomjs-prebuilt/bin/:$PATH npm run build:docs && npm run build && testem ci -f testem-ci.json",
+    "test": "PATH=node_modules/phantomjs-prebuilt/bin/:$PATH npm run build:docs && npm run build && testem ci -f testem.json",
     "build": "rm -rf dist && broccoli build dist",
-    "build-website": "npm run docs && ./bin/build-website.sh",
-    "deploy-website": "./bin/deploy-website.sh",
+    "build:docs": "jsdoc -c ./.jsdoc",
+    "build:website": "npm run build && npm run build:docs && ./bin/build-website.sh",
+    "deploy:website": "./bin/deploy-website.sh",
     "update-changelog": "conventional-changelog -i CHANGELOG.md -r 0 -s",
-    "docs": "jsdoc -c ./.jsdoc",
     "version": "npm run update-changelog && git add CHANGELOG.md",
     "prepublish": "npm run build"
   },
@@ -37,11 +37,13 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "mobiledoc-html-renderer": "^0.3.0",
-    "mobiledoc-text-renderer": "^0.3.0"
+    "mobiledoc-html-renderer": "0.3.1",
+    "mobiledoc-text-renderer": "0.3.1"
   },
   "devDependencies": {
     "broccoli": "^0.16.9",
+    "broccoli-babel-transpiler": "^5.6.1",
+    "broccoli-cli": "^1.0.0",
     "broccoli-funnel": "^1.0.1",
     "broccoli-inject-livereload": "^0.2.0",
     "broccoli-less-single": "^0.6.2",
@@ -53,10 +55,10 @@
     "conventional-changelog": "^1.1.0",
     "conventional-changelog-cli": "^1.2.0",
     "jquery": "^3.0.0",
-    "jsdoc": "^3.4.0",
-    "saucie": "^1.4.0",
+    "jsdoc": "^3.4.2",
+    "saucie": "1.4.1",
     "testem": "^1.7.4",
-    "tiny-lr": "^0.2.1"
+    "tiny-lr": "^1.0.2"
   },
   "main": "dist/commonjs/mobiledoc-kit/index.js"
 }

@@ -6,7 +6,6 @@ import {
 } from 'mobiledoc-kit/utils/parse-utils';
 import { filter, forEach } from 'mobiledoc-kit/utils/array-utils';
 import Key from 'mobiledoc-kit/utils/key';
-import { TAB } from 'mobiledoc-kit/utils/characters';
 import TextInputHandler from 'mobiledoc-kit/editor/text-input-handler';
 import SelectionManager from 'mobiledoc-kit/editor/selection-manager';
 import Browser from 'mobiledoc-kit/utils/browser';
@@ -44,6 +43,15 @@ export default class EventManager {
 
   registerInputHandler(inputHandler) {
     this._textInputHandler.register(inputHandler);
+  }
+
+  unregisterInputHandler(name) {
+    this._textInputHandler.unregister(name);
+  }
+
+  unregisterAllTextInputHandlers() {
+    this._textInputHandler.destroy();
+    this._textInputHandler = new TextInputHandler(this.editor);
   }
 
   _addListener(context, type) {
@@ -173,8 +181,9 @@ export default class EventManager {
         editor.handleNewline(event);
         break;
       case key.isTab():
+        // Handle tab here because it does not fire a `keypress` event
         event.preventDefault();
-        editor.insertText(TAB);
+        this._textInputHandler.handle(key.toString());
         break;
     }
   }
@@ -217,6 +226,11 @@ export default class EventManager {
     if (!range.isCollapsed) {
       editor.performDelete();
     }
+
+    if (editor.post.isBlank) {
+      editor._insertEmptyMarkupSectionAtCursor();
+    }
+
     let position = editor.range.head;
     let targetFormat = this.modifierKeys.shift ? 'text' : 'html';
     let pastedPost = parsePostFromPaste(event, editor, {targetFormat});

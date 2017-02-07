@@ -19,7 +19,7 @@
 
     <h1 class="page-title">Class: PostNodeBuilder</h1>
 
-    
+
 
 
 
@@ -27,31 +27,31 @@
 <section>
 
 <header>
-    
+
         <h2>PostNodeBuilder</h2>
-        
+
             <div class="class-description"><p>The PostNodeBuilder is used to create new <a href="Post.html">Post</a> primitives, such
 as a MarkupSection, a CardSection, a Markup, etc. Every instance of an
 <a href="Editor.html">Editor</a> has its own builder instance. The builder can be used
 inside an <a href="Editor.html#run">Editor#run</a> callback to programmatically create new
 Post primitives to insert into the document.
 A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on its own.</p></div>
-        
-    
+
+
 </header>
 
 <article>
     <div class="container-overview">
-    
-        
 
-    
+
+
+
     <h2>Constructor</h2>
-    
+
 
     <h4 class="name" id="PostNodeBuilder"><span class="type-signature"></span>new PostNodeBuilder<span class="signature">()</span><span class="type-signature"></span></h4>
 
-    
+
 
 
 
@@ -69,42 +69,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line45">line 45</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -122,32 +122,32 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
 
-    
+
     </div>
 
-    
 
-    
 
-    
 
-     
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
         <h3 class="subsection-title">Methods</h3>
 
-        
-            
 
-    
 
-    <h4 class="name" id="createAtom"><span class="type-signature"></span>createAtom<span class="signature">(name, text<span class="signature-attributes">opt</span>, payload<span class="signature-attributes">opt</span>, markups<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Atom}</span></h4>
 
-    
+
+
+    <h4 class="name" id="createAtom"><span class="type-signature"></span>createAtom<span class="signature">(name, value<span class="signature-attributes">opt</span>, payload<span class="signature-attributes">opt</span>, markups<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {Atom}</span></h4>
+
+
 
 
 
@@ -160,183 +160,183 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
     <h5>Parameters:</h5>
-    
+
 
 <table class="params">
     <thead>
     <tr>
-        
+
         <th>Name</th>
-        
+
 
         <th>Type</th>
 
-        
-        <th>Attributes</th>
-        
 
-        
+        <th>Attributes</th>
+
+
+
         <th>Default</th>
-        
+
 
         <th class="last">Description</th>
     </tr>
     </thead>
 
     <tbody>
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>name</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">String</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
-                <td class="name"><code>text</code></td>
-            
+
+                <td class="name"><code>value</code></td>
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">String</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     ''
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>payload</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Object</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     {}
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>markups</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Array.&lt;Markup></span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     []
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
     </tbody>
 </table>
 
@@ -347,42 +347,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line142">line 142</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -399,7 +399,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 
 
 <dl>
@@ -407,25 +407,25 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type">Atom</span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-            
 
-    
+
+
+
+
 
     <h4 class="name" id="createCardSection"><span class="type-signature"></span>createCardSection<span class="signature">(name, payload<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {CardSection}</span></h4>
 
-    
+
 
 
 
@@ -438,105 +438,105 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
     <h5>Parameters:</h5>
-    
+
 
 <table class="params">
     <thead>
     <tr>
-        
+
         <th>Name</th>
-        
+
 
         <th>Type</th>
 
-        
-        <th>Attributes</th>
-        
 
-        
+        <th>Attributes</th>
+
+
+
         <th>Default</th>
-        
+
 
         <th class="last">Description</th>
     </tr>
     </thead>
 
     <tbody>
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>name</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">String</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>payload</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Object</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     {}
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
     </tbody>
 </table>
 
@@ -547,42 +547,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line118">line 118</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -599,7 +599,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 
 
 <dl>
@@ -607,25 +607,25 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type">CardSection</span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-            
 
-    
+
+
+
+
 
     <h4 class="name" id="createMarker"><span class="type-signature"></span>createMarker<span class="signature">(value, markups<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {<a href="Marker.html">Marker</a>}</span></h4>
 
-    
+
 
 
 
@@ -638,105 +638,105 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
     <h5>Parameters:</h5>
-    
+
 
 <table class="params">
     <thead>
     <tr>
-        
+
         <th>Name</th>
-        
+
 
         <th>Type</th>
 
-        
-        <th>Attributes</th>
-        
 
-        
+        <th>Attributes</th>
+
+
+
         <th>Default</th>
-        
+
 
         <th class="last">Description</th>
     </tr>
     </thead>
 
     <tbody>
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>value</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">String</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>markups</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Array.&lt;Markup></span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     []
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
     </tbody>
 </table>
 
@@ -747,42 +747,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line129">line 129</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -799,7 +799,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 
 
 <dl>
@@ -807,25 +807,25 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type"><a href="Marker.html">Marker</a></span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-            
 
-    
+
+
+
+
 
     <h4 class="name" id="createMarkup"><span class="type-signature"></span>createMarkup<span class="signature">(tagName, attributes)</span><span class="type-signature"> &rarr; {Markup}</span></h4>
 
-    
+
 
 
 
@@ -838,73 +838,73 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
     <h5>Parameters:</h5>
-    
+
 
 <table class="params">
     <thead>
     <tr>
-        
+
         <th>Name</th>
-        
+
 
         <th>Type</th>
 
-        
 
-        
+
+
 
         <th class="last">Description</th>
     </tr>
     </thead>
 
     <tbody>
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>tagName</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">String</span>
 
 
-            
+
             </td>
 
-            
 
-            
+
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>attributes</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Object</span>
 
 
-            
+
             </td>
 
-            
 
-            
+
+
 
             <td class="description last"><p>Key-value pairs of attributes for the markup</p></td>
         </tr>
 
-    
+
     </tbody>
 </table>
 
@@ -915,42 +915,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line153">line 153</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -967,7 +967,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 
 
 <dl>
@@ -975,25 +975,25 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type">Markup</span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-            
 
-    
+
+
+
+
 
     <h4 class="name" id="createMarkupSection"><span class="type-signature"></span>createMarkupSection<span class="signature">(tagName<span class="signature-attributes">opt</span>, markers<span class="signature-attributes">opt</span>)</span><span class="type-signature"> &rarr; {MarkupSection}</span></h4>
 
-    
+
 
 
 
@@ -1006,109 +1006,109 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 
     <h5>Parameters:</h5>
-    
+
 
 <table class="params">
     <thead>
     <tr>
-        
+
         <th>Name</th>
-        
+
 
         <th>Type</th>
 
-        
-        <th>Attributes</th>
-        
 
-        
+        <th>Attributes</th>
+
+
+
         <th>Default</th>
-        
+
 
         <th class="last">Description</th>
     </tr>
     </thead>
 
     <tbody>
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>tagName</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">tagName</span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     'P'
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
 
         <tr>
-            
+
                 <td class="name"><code>markers</code></td>
-            
+
 
             <td class="type">
-            
-                
+
+
 <span class="param-type">Array.&lt;<a href="Marker.html">Marker</a>></span>
 
 
-            
+
             </td>
 
-            
+
                 <td class="attributes">
-                
+
                     &lt;optional><br>
-                
 
-                
 
-                
+
+
+
                 </td>
-            
 
-            
+
+
                 <td class="default">
-                
+
                     []
-                
+
                 </td>
-            
+
 
             <td class="description last"></td>
         </tr>
 
-    
+
     </tbody>
 </table>
 
@@ -1119,42 +1119,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line81">line 81</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -1171,7 +1171,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 
 
 <dl>
@@ -1179,25 +1179,25 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type">MarkupSection</span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-            
 
-    
+
+
+
+
 
     <h4 class="name" id="createPost"><span class="type-signature"></span>createPost<span class="signature">()</span><span class="type-signature"> &rarr; {<a href="Post.html">Post</a>}</span></h4>
 
-    
+
 
 
 
@@ -1215,42 +1215,42 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <dl class="details">
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
 
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
         <a href="models_post-node-builder.js.html">models/post-node-builder.js</a>, <a href="models_post-node-builder.js.html#line56">line 56</a>
     </li></ul></dd>
-    
 
-    
 
-    
 
-    
+
+
+
+
 </dl>
 
 
@@ -1267,7 +1267,7 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 
 <h5>Returns:</h5>
 
-        
+
 <div class="param-desc">
     <p>A new, blank post</p>
 </div>
@@ -1279,23 +1279,23 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
         Type
     </dt>
     <dd>
-        
+
 <span class="param-type"><a href="Post.html">Post</a></span>
 
 
     </dd>
 </dl>
 
-    
 
 
 
-        
-    
 
-    
 
-    
+
+
+
+
+
 </article>
 
 </section>
@@ -1306,13 +1306,13 @@ A PostNodeBuilder should be read from the Editor, <em>not</em> instantiated on i
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Direction">Direction</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-UI.html">UI</a></li></ul><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#_handleMutations">_handleMutations</a></li><li><a href="global.html#Direction">Direction</a></li><li><a href="global.html#findRenderNodeFromElement">findRenderNodeFromElement</a></li><li><a href="global.html#headPosition">headPosition</a></li><li><a href="global.html#isDirty">isDirty</a></li><li><a href="global.html#join">join</a></li><li><a href="global.html#markersFor">markersFor</a></li><li><a href="global.html#offsetOfMarker">offsetOfMarker</a></li><li><a href="global.html#parse">parse</a></li><li><a href="global.html#replaceWithHeaderSection">replaceWithHeaderSection</a></li><li><a href="global.html#replaceWithListSection">replaceWithListSection</a></li><li><a href="global.html#splitMarkerAtOffset">splitMarkerAtOffset</a></li><li><a href="global.html#tailPosition">tailPosition</a></li><li><a href="global.html#toPosition">toPosition</a></li><li><a href="global.html#toRange">toRange</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue May 10 2016 14:22:55 GMT-0400 (EDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.2</a> on Thu Nov 03 2016 18:21:57 GMT-0400 (EDT)
 </footer>
 
 <script> prettyPrint(); </script>

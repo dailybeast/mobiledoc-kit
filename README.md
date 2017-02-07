@@ -1,4 +1,4 @@
-## Mobiledoc Kit
+# Mobiledoc Kit
 
 [![Sauce Test Status](https://saucelabs.com/browser-matrix/mobiledoc-kit.svg)](https://saucelabs.com/u/mobiledoc-kit)
 
@@ -11,6 +11,27 @@
 
 Mobiledoc Kit (warning: beta) is a library for building WYSIWYG editors
 supporting rich content via cards.
+
+## Libraries
+
+This repository hosts the core Mobiledoc-Kit library. If you want to use Mobiledoc-Kit to *create a WYSIWYG editor* you have the following options:
+
+| Environment | Library |
+| ----------- | ------- |
+| Plain JavaScript | [mobiledoc-kit](https://github.com/bustlelabs/mobiledoc-kit) (this repo) |
+| Ember | [ember-mobiledoc-editor](https://github.com/bustlelabs/ember-mobiledoc-editor) |
+| React | [react-mobiledoc-editor](https://github.com/upworthy/react-mobiledoc-editor) |
+
+If you only want to use the Mobiledoc-Kit runtime, for *rendering mobiledoc posts only* (not editing or creating them), you can use:
+
+| Output Format/Environment | Library |
+| ----------  | ------- |
+| Plain JavaScript In-Browser (DOM) | [mobiledoc-dom-renderer](https://github.com/bustlelabs/mobiledoc-dom-renderer) |
+| Server-Side Rendering (HTML) | see [mobiledoc-dom-renderer's Rendering HTML section](https://github.com/bustlelabs/mobiledoc-dom-renderer#rendering-html) |
+| Server-Side Rendering (Text-only, e.g. SEO) | [mobiledoc-text-renderer](https://github.com/bustlelabs/mobiledoc-text-renderer) |
+| In-Browser (DOM) Rendering, with Ember | [ember-mobiledoc-dom-renderer](https://github.com/bustlelabs/ember-mobiledoc-dom-renderer) |
+
+Mobiledoc is a deliberately simple and terse format, and you are encouraged to write your own renderer if you have other target output formats (e.g., a PDF renderer, an iOS Native Views Renderer, etc.).
 
 ## Demo
 
@@ -53,7 +74,7 @@ optionally a Mobiledoc to load. For example:
 
 ```js
 var simpleMobiledoc = {
-  version: "0.3.0",
+  version: "0.3.1",
   markups: [],
   atoms: [],
   cards: [],
@@ -86,9 +107,17 @@ editor.render(element);
   whenever it encounters an unknown atom
 * `parserPlugins` - [array] See [DOM Parsing Hooks](https://github.com/bustlelabs/mobiledoc-kit#dom-parsing-hooks)
 
+The editor leverages unicode characters, so HTML documents must opt in to
+UTF8. For example this can be done by adding the following to an HTML
+document's `<head>`:
+
+```html
+<meta charset="utf-8" />
+```
+
 ### Editor API
 
-* `editor.serialize(version="0.3.0")` - serialize the current post for persistence. Returns
+* `editor.serialize(version="0.3.1")` - serialize the current post for persistence. Returns
   Mobiledoc.
 * `editor.destroy()` - teardown the editor event listeners, free memory etc.
 * `editor.disableEditing()` - stop the user from being able to edit the
@@ -99,6 +128,62 @@ editor.render(element);
   immediately if the card is already rendered, or will ensure that when the card
   does get rendered it will be rendered in the "edit" state initially)
 * `editor.displayCard(cardSection)` - same as `editCard` except in display mode.
+* `editor.range` - Read the current Range object for the cursor.
+
+### Position API
+
+A `Position` object represents a location in a document. For example your
+cursor may be at a position, text may be inserted at a position, and a range
+has a starting position and an ending position.
+
+Position objects are returned by several APIs, for example `deleteRange` returns
+a position. Some methods, like `splitSection` accept a position as an argument.
+
+A position can be created for any point in a document with
+`section#toPosition(offset)`.
+
+Position API includes:
+
+* `position.section` - The section of this position
+* `position.offset` - The character offset of this position in the section.
+* `position.marker` - Based on the section and offset, the marker this position
+  if on. A position may not always have a marker (for example a cursor before
+  or after a card).
+* `position.toRange(endPosition)` - Create a range based on two positions. Accepts
+  the direction of the range as a second optional argument.
+* `position.isEqual(otherPosition)` - Is this position the same as another
+* `position.move(characterCount)` - Move a number of characters to the right
+  (positive number) or left (negative number)
+* `position.moveWord(direction)` - Move a single word in a given direction.
+
+### Range API
+
+`Range` represent a range of a document. A range has a starting position
+(`head`), ending position (`tail`), and a direction (for example highlighting
+text left-to-right is a forward direction, highlighting right-to-left is a
+backward direction).
+
+Ranges are retured by serveral APIs, but most often you will be interested in
+the current range selected by the user (be it their cursor or an actual
+selection). This can be accessed at `editor#range`. Several post editor APIs
+expect a range as an argument, for example `setRange` or `deleteRange`.
+
+Ranges sport several public APIs for manipulation, each of which returns a new,
+unique range instance:
+
+* `range.head` - The position on the range closer to the start of the document.
+* `range.tail` - The position on the range closer to the end of the document.
+* `range.isCollapsed` - A range is collapsed when its head and tail are the same
+  position.
+* `range.focusedPosition` - If a range has a forward direction, then tail. If
+  it has a backward direction, the head.
+* `range.extend(characterCount)` - Grow a range one character in whatever its
+  direction is.
+* `range.move(direction)` - If the range is collapsed, move the range forward
+  one character. If it is not, collapse it in the direction passed.
+* `range.expandByMarker(callback)` - In both directions attempt grow the
+  range as long as `callback` returns true. `callback` is passed each marker
+  as the range is grown.
 
 ### Editor Lifecycle Hooks
 
@@ -241,6 +326,11 @@ editor.onTextInput({
 The editor has several default text input handlers that are defined in
 `src/js/editor/text-input-handlers.js`.
 
+To remove default text input handlers, simply call the unregister function.
+```javascript
+editor.unregisterAllTextInputHandlers();
+```
+
 ### DOM Parsing hooks
 
 A developer can override the default parsing behavior for leaf DOM nodes in
@@ -282,23 +372,26 @@ Parser hooks are called with three arguments:
 Note that you *must* call `nodeFinished` to stop a DOM node from being
 parsed by the next plugin or the default parser.
 
-### Contributing
+## Caveats
+
+### Mobiledoc-kit and the Grammarly extension
+`mobiledoc-kit` and the [Grammarly extension](https://www.grammarly.com/) do not play well together (see [issue 422](https://github.com/bustlelabs/mobiledoc-kit/issues/422)). Until this is resolved, you can avoid any such problems by disabling Grammarly for the `mobiledoc-kit` instances on your page. To do this, add the `data-gramm="false"` attribute to the `mobiledoc-kit` main DOM element.
+
+## Contributing
 
 Fork the repo, write a test, make a change, open a PR.
 
-#### Tests
+### Tests
 
-Install npm and bower:
+Install dependencies via yarn:
 
   * [Node.js](http://nodejs.org/) is required
-  * `npm install -g npm && npm install -g bower`
-  * `broccoli`, via `npm install -g broccoli-cli`
-  * `bower install`
-  * `npm install`
+  * Install [yarn](https://yarnpkg.com/en/docs/install) globally: `npm install -g yarn` or `brew install yarn`
+  * Install dependencies with yarn: `yarn install`
 
 Run tests via the built-in broccoli server:
 
-  * `broccoli serve`
+  * `npm start`
   * `open http://localhost:4200/tests`
 
 Or run headless tests via testem:
@@ -307,33 +400,32 @@ Or run headless tests via testem:
 
 Tests in CI are run at Travis via Saucelabs (see the `test:ci` npm script).
 
-#### Demo
+### Demo
 
-There is a demo app that uses the Mobiledoc kit via the [ember-mobiledoc-editor](https://github.com/bustlelabs/ember-mobiledoc-editor)
-in `demo/`. To run the demo:
+To run the demo site locally:
 
- * `cd demo/ && npm install && bower install`
- * `ember serve` (shut down your broccoli server if it is already running on port 4200)
- * visit http://localhost:4200/
+ * `npm start`
+ * `open http://localhost:4200/demo`
 
+The assets for the demo are in `assets/demo`.
 
-#### Getting Help
+### Getting Help
 
 If you notice a bug or have a feature request please [open an issue on github](https://github.com/bustlelabs/mobiledoc-kit/issues).
 If you have a question about usage you can post in the [gitter channel](https://gitter.im/bustlelabs/mobiledoc-kit) or on StackOverflow using the [`mobiledoc-kit` tag](http://stackoverflow.com/questions/tagged/mobiledoc-kit).
 
-#### Releasing
+### Releasing (Implementer notes)
 
 * Use `np` (`npm install -g np`)
 * `np <version>` (e.g. `np 0.12.0`)
 * `git push <origin> --tags`
 
-#### Deploy the demo
+### Deploy the demo
 
 The demo website is hosted at github pages. To publish a new version:
 
-  * `npm run build-website` - This builds the website into `website/` and commits it
-  * `npm run deploy-website` - Pushes the `website/` subtree to the `gh-pages`
+  * `npm run build:website` - This builds the website into `website/` and commits it
+  * `npm run deploy:website` - Pushes the `website/` subtree to the `gh-pages`
      branch of your `origin` at github
 
 Visit [bustlelabs.github.io/mobiledoc-kit/demo](https://bustlelabs.github.io/mobiledoc-kit/demo).

@@ -19,21 +19,19 @@
 
     <h1 class="page-title">Source: models/post.js</h1>
 
-    
 
 
 
-    
+
+
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>import { POST_TYPE } from './types';
 import LinkedList from 'mobiledoc-kit/utils/linked-list';
-import { forEach, compact } from 'mobiledoc-kit/utils/array-utils';
+import { forEach } from 'mobiledoc-kit/utils/array-utils';
 import Set from 'mobiledoc-kit/utils/set';
-import mobiledocRenderers from 'mobiledoc-kit/renderers/mobiledoc';
-import Range from 'mobiledoc-kit/utils/cursor/range';
 import Position from 'mobiledoc-kit/utils/cursor/position';
-import deprecate from 'mobiledoc-kit/utils/deprecate';
+import assert from 'mobiledoc-kit/utils/assert';
 
 /**
  * The Post is an in-memory representation of an editor's document.
@@ -55,6 +53,11 @@ class Post {
     });
   }
 
+  /**
+   * @return {Position} The position at the start of the post (will be a {@link BlankPosition}
+   * if the post is blank)
+   * @public
+   */
   headPosition() {
     if (this.isBlank) {
       return Position.blankPosition();
@@ -63,6 +66,11 @@ class Post {
     }
   }
 
+  /**
+   * @return {Position} The position at the end of the post (will be a {@link BlankPosition}
+   * if the post is blank)
+   * @public
+   */
   tailPosition() {
     if (this.isBlank) {
       return Position.blankPosition();
@@ -71,8 +79,31 @@ class Post {
     }
   }
 
+  /**
+   * @return {Range} A range encompassing the entire post
+   * @public
+   */
+  toRange() {
+    return this.headPosition().toRange(this.tailPosition());
+  }
+
   get isBlank() {
     return this.sections.isEmpty;
+  }
+
+  /**
+   * If the post has no sections, or only has one, blank section, then it does
+   * not have content and this method returns false. Otherwise it is true.
+   * @return {Boolean}
+   * @public
+   */
+  get hasContent() {
+    if ((this.sections.length > 1) ||
+        (this.sections.length === 1 &amp;&amp; !this.sections.head.isBlank)) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   /**
@@ -92,66 +123,27 @@ class Post {
     return markers;
   }
 
-  cutMarkers(markers) {
-    let firstSection = markers.length &amp;&amp; markers[0].section,
-        lastSection  = markers.length &amp;&amp; markers[markers.length - 1].section;
-
-    let currentSection = firstSection;
-    let removedSections = [],
-        changedSections = compact([firstSection, lastSection]);
-
-    if (markers.length !== 0) {
-      markers.forEach(marker => {
-        if (marker.section !== currentSection) { // this marker is in a section we haven't seen yet
-          if (marker.section !== firstSection &amp;&amp;
-              marker.section !== lastSection) {
-            // section is wholly contained by markers, and can be removed
-            removedSections.push(marker.section);
-          }
-        }
-
-        currentSection = marker.section;
-        currentSection.markers.remove(marker);
-      });
-
-      if (firstSection !== lastSection) {
-        firstSection.join(lastSection);
-        removedSections.push(lastSection);
-      }
-    }
-
-    return {changedSections, removedSections};
-  }
-
-  /**
-   * Invoke `callbackFn` for all markers between the headMarker and tailMarker (inclusive),
-   * across sections
-   * @private
-   */
-  markersFrom(headMarker, tailMarker, callbackFn) {
-    let currentMarker = headMarker;
-    while (currentMarker) {
-      callbackFn(currentMarker);
-
-      if (currentMarker === tailMarker) {
-        currentMarker = null;
-      } else if (currentMarker.next) {
-        currentMarker = currentMarker.next;
-      } else {
-        let nextSection = this._nextMarkerableSection(currentMarker.section);
-        // FIXME: This will fail across cards
-        currentMarker = nextSection &amp;&amp; nextSection.markers.head;
-      }
-    }
-  }
-
   markupsInRange(range) {
     const markups = new Set();
 
     if (range.isCollapsed) {
-      let marker = range.head.marker;
-      if (marker) {
-        marker.markups.forEach(m => markups.add(m));
+      let pos = range.head;
+      if (pos.isMarkerable) {
+        let [back, forward] = [pos.markerIn(-1), pos.markerIn(1)];
+        if (back &amp;&amp; forward &amp;&amp; back === forward) {
+          back.markups.forEach(m => markups.add(m));
+        } else {
+          (back &amp;&amp; back.markups || []).forEach(m => {
+            if (m.isForwardInclusive()) {
+              markups.add(m);
+            }
+          });
+          (forward &amp;&amp; forward.markups || []).forEach(m => {
+            if (m.isBackwardInclusive()) {
+              markups.add(m);
+            }
+          });
+        }
       }
     } else {
       this.walkMarkerableSections(range, (section) => {
@@ -166,8 +158,7 @@ class Post {
   }
 
   walkAllLeafSections(callback) {
-    let range = new Range(this.sections.head.headPosition(),
-                          this.sections.tail.tailPosition());
+    let range = this.headPosition().toRange(this.tailPosition());
     return this.walkLeafSections(range, callback);
   }
 
@@ -201,64 +192,19 @@ class Post {
     });
   }
 
-  /**
-   * @param {Range} range
-   * @return {Section[]} All top-level sections (direct children of `post`) wholly
-   *         contained by {range}. Sections that are partially contained by the range
-   *         are not returned.
-   * @private
-   */
-  sectionsContainedBy(range) {
-    const {head, tail} = range;
-    let containedSections = [];
-
-    const findParent = (child, conditionFn) => {
-      while (child) {
-        if (conditionFn(child)) { return child; }
-        child = child.parent;
-      }
-    };
-
-    const headTopLevelSection = findParent(head.section, s => s.parent === s.post);
-    const tailTopLevelSection = findParent(tail.section, s => s.parent === s.post);
-
-    if (headTopLevelSection === tailTopLevelSection) {
-      return containedSections;
-    }
-
-    let currentSection = headTopLevelSection.next;
-    while (currentSection &amp;&amp; currentSection !== tailTopLevelSection) {
-      containedSections.push(currentSection);
-      currentSection = currentSection.next;
-    }
-
-    return containedSections;
-  }
-
-  _nextMarkerableSection(section) {
-    let nextSection = this._nextLeafSection(section);
-
-    while (nextSection &amp;&amp; !nextSection.isMarkerable) {
-      nextSection = this._nextLeafSection(nextSection);
-    }
-
-    return nextSection;
-  }
-
   // return the next section that has markers after this one,
   // possibly skipping non-markerable sections
   _nextLeafSection(section) {
     if (!section) { return null; }
-    const hasChildren  = s => !!s.items;
-    const firstChild   = s => s.items.head;
 
-    // FIXME this can be refactored to use `isLeafSection`
     const next = section.next;
     if (next) {
-      if (hasChildren(next)) { // e.g. a ListSection
-        return firstChild(next);
-      } else {
+      if (next.isLeafSection) {
         return next;
+      } else if (!!next.items) {
+        return next.items.head;
+      } else {
+        assert('Cannot determine next section from non-leaf-section', false);
       }
     } else if (section.isNested) {
       // if there is no section after this, but this section is a child
@@ -266,14 +212,6 @@ class Post {
       // section after its parent
       return this._nextLeafSection(section.parent);
     }
-  }
-
-  /**
-   * @deprecated since 0.9.1
-   */
-  cloneRange(range) {
-    deprecate('post#cloneRange is deprecated. See post#trimTo(range) and editor#serializePost');
-    return mobiledocRenderers.render(this.trimTo(range));
   }
 
   /**
@@ -332,13 +270,13 @@ export default Post;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Direction">Direction</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-UI.html">UI</a></li></ul><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#_handleMutations">_handleMutations</a></li><li><a href="global.html#Direction">Direction</a></li><li><a href="global.html#findRenderNodeFromElement">findRenderNodeFromElement</a></li><li><a href="global.html#headPosition">headPosition</a></li><li><a href="global.html#isDirty">isDirty</a></li><li><a href="global.html#join">join</a></li><li><a href="global.html#markersFor">markersFor</a></li><li><a href="global.html#offsetOfMarker">offsetOfMarker</a></li><li><a href="global.html#parse">parse</a></li><li><a href="global.html#replaceWithHeaderSection">replaceWithHeaderSection</a></li><li><a href="global.html#replaceWithListSection">replaceWithListSection</a></li><li><a href="global.html#splitMarkerAtOffset">splitMarkerAtOffset</a></li><li><a href="global.html#tailPosition">tailPosition</a></li><li><a href="global.html#toPosition">toPosition</a></li><li><a href="global.html#toRange">toRange</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue May 10 2016 14:22:55 GMT-0400 (EDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.2</a> on Thu Nov 03 2016 18:21:57 GMT-0400 (EDT)
 </footer>
 
 <script> prettyPrint(); </script>

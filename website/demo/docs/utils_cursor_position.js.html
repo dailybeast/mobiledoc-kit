@@ -19,11 +19,11 @@
 
     <h1 class="page-title">Source: utils/cursor/position.js</h1>
 
-    
 
 
 
-    
+
+
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>import { isTextNode } from 'mobiledoc-kit/utils/dom-utils';
@@ -34,6 +34,12 @@ import {
 } from 'mobiledoc-kit/models/marker';
 import { containsNode } from 'mobiledoc-kit/utils/dom-utils';
 import { findOffsetInNode } from 'mobiledoc-kit/utils/selection-utils';
+import { DIRECTION } from 'mobiledoc-kit/utils/key';
+import Range from './range';
+
+const { FORWARD, BACKWARD } = DIRECTION;
+
+const WORD_CHAR_REGEX = /\w|_|:/;
 
 function findParentSectionFromNode(renderTree, node) {
   let renderNode =  renderTree.findRenderNodeFromElement(
@@ -82,25 +88,26 @@ function findOffsetInSection(section, node, offset) {
   }
 }
 
-const Position = class Position {
+let Position, BlankPosition;
+
+Position = class Position {
   /**
    * A position is a logical location (zero-width, or "collapsed") in a post,
    * typically between two characters in a section.
    * Two positions (a head and a tail) make up a {@link Range}.
    * @constructor
    */
-  constructor(section, offset=0) {
-    assert('Position must have a section that is addressable by the cursor',
-           (section &amp;&amp; section.isLeafSection));
-    assert('Position must have numeric offset',
-           (offset !== null &amp;&amp; offset !== undefined));
+  constructor(section, offset=0, isBlank=false) {
+    if (!isBlank) {
+      assert('Position must have a section that is addressable by the cursor',
+             (section &amp;&amp; section.isLeafSection));
+      assert('Position must have numeric offset',
+             (typeof offset === 'number'));
+    }
 
-    /** @property {Section} section */
     this.section = section;
-    /** @property {number} offset */
     this.offset = offset;
-
-    this.isBlank = false;
+    this.isBlank = isBlank;
   }
 
   /**
@@ -121,19 +128,18 @@ const Position = class Position {
   }
 
   static blankPosition() {
-    return {
-      section: null,
-      offset: 0,
-      marker: null,
-      offsetInTextNode: 0,
-      isBlank: true,
-      isEqual(other) { return other.isBlank; },
-      markerPosition: {}
-    };
+    return new BlankPosition();
   }
 
-  clone() {
-    return new Position(this.section, this.offset);
+  /**
+   * Returns a range from this position to the given tail. If no explicit
+   * tail is given this returns a collapsed range focused on this position.
+   * @param {Position} [tail=this] The ending position
+   * @return {Range}
+   * @public
+   */
+  toRange(tail=this) {
+    return new Range(this, tail);
   }
 
   get leafSectionIndex() {
@@ -151,8 +157,37 @@ const Position = class Position {
     return this.section &amp;&amp; this.section.isMarkerable;
   }
 
+  /**
+   * Returns the marker at this position, in the backward direction
+   * (i.e., the marker to the left of the cursor if the cursor is on a marker boundary and text is left-to-right)
+   * @return {Marker|undefined}
+   */
   get marker() {
     return this.isMarkerable &amp;&amp; this.markerPosition.marker;
+  }
+
+  /**
+   * Returns the marker in `direction` from this position.
+   * If the position is in the middle of a marker, the direction is irrelevant.
+   * Otherwise, if the position is at a boundary between two markers, returns the
+   * marker to the left if `direction` === BACKWARD and the marker to the right
+   * if `direction` === FORWARD (assuming left-to-right text direction).
+   * @param {Direction}
+   * @return {Marker|undefined}
+   */
+  markerIn(direction) {
+    if (!this.isMarkerable) { return; }
+
+    let { marker, offsetInMarker } = this;
+    if (!marker) { return; }
+
+    if (offsetInMarker > 0 &amp;&amp; offsetInMarker &lt; marker.length) {
+      return marker;
+    } else if (offsetInMarker === 0) {
+      return direction === BACKWARD ? marker : marker.prev;
+    } else if (offsetInMarker === marker.length) {
+      return direction === FORWARD ? marker.next : marker;
+    }
   }
 
   get offsetInMarker() {
@@ -164,10 +199,30 @@ const Position = class Position {
            this.offset  === position.offset;
   }
 
+  /**
+   * @return {Boolean} If this position is at the head of the post
+   */
+  isHeadOfPost() {
+    return this.move(BACKWARD).isEqual(this);
+  }
+
+  /**
+   * @return {Boolean} If this position is at the tail of the post
+   */
+  isTailOfPost() {
+    return this.move(FORWARD).isEqual(this);
+  }
+
+  /**
+   * @return {Boolean} If this position is at the head of its section
+   */
   isHead() {
     return this.isEqual(this.section.headPosition());
   }
 
+  /**
+   * @return {Boolean} If this position is at the head of its section
+   */
   isTail() {
     return this.isEqual(this.section.tailPosition());
   }
@@ -191,6 +246,79 @@ const Position = class Position {
     } else {
       return this;
     }
+  }
+
+  /**
+   * @param {Number} direction (FORWARD or BACKWARD)
+   * @return {Position} The result of moving 1 "word" unit in `direction`
+   */
+  moveWord(direction) {
+    let isPostBoundary = direction === BACKWARD ? this.isHeadOfPost() : this.isTailOfPost();
+    if (isPostBoundary) {
+      return this;
+    }
+
+    if (!this.isMarkerable) {
+      return this.move(direction);
+    }
+
+    let pos = this;
+
+    // Helper fn to check if the pos is at the `dir` boundary of its section
+    let isBoundary = (pos, dir) => {
+      return dir === BACKWARD ? pos.isHead() : pos.isTail();
+    };
+    // Get the char at this position (looking forward/right)
+    let getChar = (pos) => {
+      let { marker, offsetInMarker } = pos;
+      return marker.charAt(offsetInMarker);
+    };
+    // Get the char in `dir` at this position
+    let peekChar = (pos, dir) => {
+      return dir === BACKWARD ? getChar(pos.move(BACKWARD)) : getChar(pos);
+    };
+    // Whether there is an atom in `dir` from this position
+    let isAtom = (pos, dir) => {
+      // Special case when position is at end, the marker associated with it is
+      // the marker to its left. Normally `pos#marker` is the marker to the right of the pos's offset.
+      if (dir === BACKWARD &amp;&amp; pos.isTail() &amp;&amp; pos.marker.isAtom) {
+        return true;
+      }
+      return dir === BACKWARD ? pos.move(BACKWARD).marker.isAtom : pos.marker.isAtom;
+    };
+
+    if (isBoundary(pos, direction)) {
+      // extend movement into prev/next section
+      return pos.move(direction).moveWord(direction);
+    }
+
+    let seekWord = (pos) => {
+      return !isBoundary(pos, direction) &amp;&amp;
+        !isAtom(pos, direction) &amp;&amp;
+        !WORD_CHAR_REGEX.test(peekChar(pos, direction));
+    };
+
+    // move(dir) while we are seeking the first word char
+    while (seekWord(pos)) {
+      pos = pos.move(direction);
+    }
+
+    if (isAtom(pos, direction)) {
+      return pos.move(direction);
+    }
+
+    let seekBoundary = (pos) => {
+      return !isBoundary(pos, direction) &amp;&amp;
+        !isAtom(pos, direction) &amp;&amp;
+        WORD_CHAR_REGEX.test(peekChar(pos, direction));
+    };
+
+    // move(dir) while we are seeking the first boundary position
+    while (seekBoundary(pos)) {
+      pos = pos.move(direction);
+    }
+
+    return pos;
   }
 
   /**
@@ -330,6 +458,30 @@ const Position = class Position {
   }
 };
 
+BlankPosition = class BlankPosition extends Position {
+  constructor() {
+    super(null, 0, true);
+  }
+
+  isEqual(other) {
+    return other &amp;&amp; other.isBlank;
+  }
+
+  toRange() { return Range.blankRange(); }
+  get leafSectionIndex() { assert('must implement get leafSectionIndex', false); }
+
+  get isMarkerable() { return false; }
+  get marker() { return false; }
+  isHeadOfPost() { return false; }
+  isTailOfPost() { return false; }
+  isHead() { return false; }
+  isTail() { return false; }
+  move() { return this; }
+  moveWord() { return this; }
+
+  get markerPosition() { return {}; }
+};
+
 export default Position;
 </code></pre>
         </article>
@@ -341,13 +493,13 @@ export default Position;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Direction">Direction</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-UI.html">UI</a></li></ul><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#_handleMutations">_handleMutations</a></li><li><a href="global.html#Direction">Direction</a></li><li><a href="global.html#findRenderNodeFromElement">findRenderNodeFromElement</a></li><li><a href="global.html#headPosition">headPosition</a></li><li><a href="global.html#isDirty">isDirty</a></li><li><a href="global.html#join">join</a></li><li><a href="global.html#markersFor">markersFor</a></li><li><a href="global.html#offsetOfMarker">offsetOfMarker</a></li><li><a href="global.html#parse">parse</a></li><li><a href="global.html#replaceWithHeaderSection">replaceWithHeaderSection</a></li><li><a href="global.html#replaceWithListSection">replaceWithListSection</a></li><li><a href="global.html#splitMarkerAtOffset">splitMarkerAtOffset</a></li><li><a href="global.html#tailPosition">tailPosition</a></li><li><a href="global.html#toPosition">toPosition</a></li><li><a href="global.html#toRange">toRange</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue May 10 2016 14:22:55 GMT-0400 (EDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.2</a> on Thu Nov 03 2016 18:21:57 GMT-0400 (EDT)
 </footer>
 
 <script> prettyPrint(); </script>

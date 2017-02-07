@@ -11,7 +11,7 @@ import mobiledocRenderers from '../renderers/mobiledoc';
 import { MOBILEDOC_VERSION } from 'mobiledoc-kit/renderers/mobiledoc';
 import { mergeWithOptions } from '../utils/merge';
 import { normalizeTagName, clearChildNodes } from '../utils/dom-utils';
-import { forEach, filter, contains, values } from '../utils/array-utils';
+import { forEach, filter, contains, values, detect } from '../utils/array-utils';
 import { setData } from '../utils/element-utils';
 import Cursor from '../utils/cursor';
 import Range from '../utils/cursor/range';
@@ -22,7 +22,6 @@ import {
   DEFAULT_KEY_COMMANDS, buildKeyCommand, findKeyCommands, validateKeyCommand
 } from './key-commands';
 import { CARD_MODES } from '../models/card';
-import { detect } from '../utils/array-utils';
 import assert from '../utils/assert';
 import MutationHandler from 'mobiledoc-kit/editor/mutation-handler';
 import EditHistory from 'mobiledoc-kit/editor/edit-history';
@@ -44,6 +43,7 @@ const defaults = {
   spellcheck: true,
   autofocus: true,
   undoDepth: 5,
+  undoBlockTimeout: 5000, // ms for an undo event
   cards: [],
   atoms: [],
   cardOptions: {},
@@ -63,6 +63,7 @@ const CALLBACK_QUEUES = {
   DID_RENDER: 'didRender',
   WILL_DELETE: 'willDelete',
   DID_DELETE: 'didDelete',
+  WILL_HANDLE_NEWLINE: 'willHandleNewline',
   CURSOR_DID_CHANGE: 'cursorDidChange',
   DID_REPARSE: 'didReparse',
   POST_DID_CHANGE: 'postDidChange',
@@ -135,7 +136,7 @@ class Editor {
     this.post = this.loadPost();
     this._renderTree = new RenderTree(this.post);
 
-    this._editHistory = new EditHistory(this, this.undoDepth);
+    this._editHistory = new EditHistory(this, this.undoDepth, this.undoBlockTimeout);
     this._eventManager = new EventManager(this);
     this._mutationHandler = new MutationHandler(this);
     this._editState = new EditState(this);
@@ -339,13 +340,16 @@ class Editor {
           return;
         }
       }
+
+      // Above logic might delete redundant range, so callback must run after it.
+      let defaultPrevented = false;
+      const event = { preventDefault() { defaultPrevented = true; } };
+      this.runCallbacks(CALLBACK_QUEUES.WILL_HANDLE_NEWLINE, [event]);
+      if (defaultPrevented) { return; }
+
       cursorSection = postEditor.splitSection(range.head)[1];
       postEditor.setRange(cursorSection.headPosition());
     });
-  }
-
-  showPrompt(message, defaultValue, callback) {
-    callback(window.prompt(message, defaultValue));
   }
 
   /**
@@ -395,9 +399,6 @@ class Editor {
   }
 
   _readRangeFromDOM() {
-    if (!this.isEditable) {
-      return;
-    }
     this.range = this.cursor.offsets;
   }
 
@@ -687,7 +688,7 @@ class Editor {
     if (postEditor._shouldCancelSnapshot) {
       this._editHistory._pendingSnapshot = null;
     }
-    this._editHistory.storeSnapshot();
+    this._editHistory.storeSnapshot(postEditor.editActionTaken);
 
     return result;
   }
@@ -713,6 +714,7 @@ class Editor {
    * Register a handler that will be invoked by the editor after the user enters
    * matching text.
    * @param {Object} inputHandler
+   * @param {String} inputHandler.name Required. Used by identifying handlers.
    * @param {String} [inputHandler.text] Required if `match` is not provided
    * @param {RegExp} [inputHandler.match] Required if `text` is not provided
    * @param {Function} inputHandler.run This callback is invoked with the {@link Editor}
@@ -725,6 +727,25 @@ class Editor {
    */
   onTextInput(inputHandler) {
     this._eventManager.registerInputHandler(inputHandler);
+  }
+
+  /**
+   * Unregister all text input handlers
+   *
+   * @public
+   */
+  unregisterAllTextInputHandlers() {
+    this._eventManager.unregisterAllTextInputHandlers();
+  }
+
+  /**
+   * Unregister text input handler by name
+   * @param {String} name The name of handler to be removed
+   *
+   * @public
+   */
+  unregisterTextInputHandler(name) {
+    this._eventManager.unregisterInputHandler(name);
   }
 
   /**
@@ -767,6 +788,14 @@ class Editor {
    */
   didDelete(callback) {
     this.addCallback(CALLBACK_QUEUES.DID_DELETE, callback);
+  }
+
+  /**
+   * @param {Function} callback This callback will be called before handling new line.
+   * @public
+   */
+  willHandleNewline(callback) {
+    this.addCallback(CALLBACK_QUEUES.WILL_HANDLE_NEWLINE, callback);
   }
 
   /**

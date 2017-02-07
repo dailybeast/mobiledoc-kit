@@ -19,21 +19,25 @@
 
     <h1 class="page-title">Source: editor/post.js</h1>
 
-    
 
 
 
-    
+
+
     <section>
         <article>
             <pre class="prettyprint source linenums"><code>import Position from '../utils/cursor/position';
-import { forEach, filter, values } from '../utils/array-utils';
+import Range from 'mobiledoc-kit/utils/cursor/range';
+import { forEach, reduce, filter, values, commonItems } from '../utils/array-utils';
 import { DIRECTION } from '../utils/key';
 import LifecycleCallbacks from '../models/lifecycle-callbacks';
 import assert from '../utils/assert';
 import { normalizeTagName } from '../utils/dom-utils';
-import Range from '../utils/cursor/range';
 import PostInserter from './post/post-inserter';
+import deprecate from 'mobiledoc-kit/utils/deprecate';
+import toRange from 'mobiledoc-kit/utils/to-range';
+
+const { FORWARD, BACKWARD } = DIRECTION;
 
 function isListSectionTagName(tagName) {
   return tagName === 'ul' || tagName === 'ol';
@@ -69,7 +73,7 @@ class PostEditor {
 
     this._didComplete = false;
 
-    this._renderRange = () => this.editor.renderRange(this._range);
+    this._renderRange = () => this.editor.selectRange(this._range);
     this._postDidChange = () => this.editor._postDidChange();
     this._rerender = () => this.editor.rerender();
   }
@@ -91,7 +95,27 @@ class PostEditor {
     this._range = this.editor.range;
   }
 
+  /**
+   * Schedules to select the given range on the editor after the postEditor
+   * has completed its work. This also updates the postEditor's active range
+   * (so that multiple calls to range-changing methods on the postEditor will
+   * update the correct range).
+   *
+   * Usage:
+   *   let range = editor.range;
+   *   editor.run(postEditor => {
+   *     let nextPosition = postEditor.deleteRange(range);
+   *
+   *     // Will position the editor's cursor at `nextPosition` after
+   *     // the postEditor finishes work and the editor rerenders.
+   *     postEditor.setRange(nextPosition);
+   *   });
+   * @param {Range|Position} range
+   * @public
+   */
   setRange(range) {
+    range = toRange(range);
+
     // TODO validate that the range is valid
     // (does not contain marked-for-removal head or tail sections?)
     this._range = range;
@@ -105,7 +129,8 @@ class PostEditor {
    * ```
    *     let { range } = editor;
    *     editor.run((postEditor) => {
-   *       postEditor.deleteRange(range);
+   *       let nextPosition = postEditor.deleteRange(range);
+   *       postEditor.setRange(nextPosition);
    *     });
    * ```
    * @param {Range} range Cursor Range object with head and tail Positions
@@ -113,137 +138,99 @@ class PostEditor {
    * @public
    */
   deleteRange(range) {
-    // types of selection deletion:
-    //   * a selection starts at the beginning of a section
-    //     -- cursor should end up at the beginning of that section
-    //     -- if the section not longer has markers, add a blank one for the cursor to focus on
-    //   * a selection is entirely within a section
-    //     -- split the markers with the selection, remove those new markers from their section
-    //     -- cursor goes at end of the marker before the selection start, or if the
-    //     -- selection was at the start of the section, cursor goes at section start
-    //   * a selection crosses multiple sections
-    //     -- remove all the sections that are between (exclusive) selection start and end
-    //     -- join the start and end sections
-    //     -- mark the end section for removal
-    //     -- cursor goes at end of marker before the selection start
+    assert("Must pass MobiledocKit Range to `deleteRange`", range instanceof Range);
 
     let {
-      head: {section: headSection, offset: headSectionOffset},
-      tail: {section: tailSection, offset: tailSectionOffset}
+      head, head: {section: headSection},
+      tail, tail: {section: tailSection}
     } = range;
-    const { post } = this.editor;
 
-    let nextPosition;
+    let { editor: { post } } = this;
 
     if (headSection === tailSection) {
-      nextPosition = this.cutSection(headSection, headSectionOffset, tailSectionOffset);
-    } else {
-      let removedSections = post.sectionsContainedBy(range);
-      let appendSection = headSection;
-
-      post.walkLeafSections(range, section => {
-        switch (section) {
-          case headSection:
-            if (section.isCardSection) {
-              appendSection = this.builder.createMarkupSection();
-
-              if (headSectionOffset === 0) {
-                removedSections.push(section);
-                nextPosition = appendSection.headPosition();
-              } else {
-                nextPosition = section.tailPosition();
-              }
-            } else {
-              nextPosition = this.cutSection(section, headSectionOffset, section.length);
-            }
-            break;
-          case tailSection:
-            if (section.isCardSection) {
-              if (tailSectionOffset === 1) {
-                removedSections.push(section);
-              }
-            } else {
-              section.markersFor(tailSectionOffset, section.text.length).forEach(m => {
-                appendSection.markers.append(m);
-              });
-              this._markDirty(headSection); // May have added nodes
-              removedSections.push(section);
-            }
-            break;
-          default:
-            if (removedSections.indexOf(section) === -1) {
-              removedSections.push(section);
-            }
-          }
-      });
-      if (headSection !== appendSection) {
-        this.insertSectionBefore(post.sections, appendSection, headSection.next);
-      }
-      removedSections.forEach(section => this.removeSection(section) );
+      return this.cutSection(headSection, head, tail);
     }
 
-    return nextPosition;
+    let nextSection = headSection.nextLeafSection();
+
+    let nextPos = this.cutSection(headSection, head, headSection.tailPosition());
+    // cutSection can replace the section, so re-read headSection here
+    headSection = nextPos.section;
+
+    // Remove sections in the middle of the range
+    while (nextSection !== tailSection) {
+      let tmp = nextSection;
+      nextSection = nextSection.nextLeafSection();
+      this.removeSection(tmp);
+    }
+
+    let tailPos = this.cutSection(tailSection, tailSection.headPosition(), tail);
+    // cutSection can replace the section, so re-read tailSection here
+    tailSection = tailPos.section;
+
+    if (tailSection.isBlank) {
+      this.removeSection(tailSection);
+    } else {
+      // If head and tail sections are markerable, join them
+      // Note: They may not be the same section type. E.g. this may join
+      // a tail section that was a list item onto a markup section, or vice versa.
+      // (This is the desired behavior.)
+      if (headSection.isMarkerable &amp;&amp; tailSection.isMarkerable) {
+        headSection.join(tailSection);
+        this._markDirty(headSection);
+        this.removeSection(tailSection);
+      } else if (headSection.isBlank) {
+        this.removeSection(headSection);
+        nextPos = tailPos;
+      }
+    }
+
+    if (post.isBlank) {
+      post.sections.append(this.builder.createMarkupSection('p'));
+      nextPos = post.headPosition();
+    }
+
+    return nextPos;
   }
 
   /**
+   * Note: This method may replace `section` with a different section.
+   *
+   * "Cut" out the part of the section inside `headOffset` and `tailOffset`.
+   * If section is markerable this splits markers that straddle the head or tail (if necessary),
+   * and removes markers that are wholly inside the offsets.
+   * If section is a card, this may replace it with a blank markup section if the
+   * positions contain the entire card.
+   *
+   * @param {Section} section
+   * @param {Position} head
+   * @param {Position} tail
    * @return {Position}
    * @private
    */
-  cutSection(section, headSectionOffset, tailSectionOffset) {
-    if (section.isBlank || headSectionOffset === tailSectionOffset) {
-      return new Position(section, headSectionOffset);
+  cutSection(section, head, tail) {
+    assert('Must pass head position and tail position to `cutSection`',
+           head instanceof Position &amp;&amp; tail instanceof Position);
+    assert('Must pass positions within same section to `cutSection`',
+           head.section === tail.section);
+
+    if (section.isBlank || head.isEqual(tail)) {
+      return head;
     }
     if (section.isCardSection) {
-      let newSection = this.builder.createMarkupSection();
-      this.replaceSection(section, newSection);
-      return newSection.headPosition();
-    }
-
-    let adjustedHead = 0,
-        marker = section.markers.head,
-        adjustedTail = marker.length;
-
-    // Walk to the first node inside the headSectionOffset, splitting
-    // a marker if needed. Leave marker as the first node inside.
-    while (marker) {
-      if (adjustedTail >= headSectionOffset) {
-        let splitOffset = headSectionOffset - adjustedHead;
-        let { afterMarker } = this.splitMarker(marker, splitOffset);
-        adjustedHead = adjustedHead + splitOffset;
-        // FIXME: That these two loops cannot agree on adjustedTail being
-        // incremented at the start or end seems prime for refactoring.
-        adjustedTail = adjustedHead;
-        marker = afterMarker;
-        break;
-      }
-      adjustedHead += marker.length;
-      marker = marker.next;
-      if (marker) {
-        adjustedTail += marker.length;
+      if (head.isHead() &amp;&amp; tail.isTail()) {
+        let newSection = this.builder.createMarkupSection();
+        this.replaceSection(section, newSection);
+        return newSection.headPosition();
+      } else {
+        return tail;
       }
     }
 
-    // Walk each marker inside, removing it if needed. when the last is
-    // reached split it and remove the part inside the tailSectionOffset
-    while (marker) {
-      adjustedTail += marker.length;
-      if (adjustedTail >= tailSectionOffset) {
-        let splitOffset = marker.length - (adjustedTail - tailSectionOffset);
-        let {
-          beforeMarker
-        } = this.splitMarker(marker, splitOffset);
-        if (beforeMarker) {
-          this.removeMarker(beforeMarker);
-        }
-        break;
-      }
-      adjustedHead += marker.length;
-      let nextMarker = marker.next;
-      this.removeMarker(marker);
-      marker = nextMarker;
-    }
+    let range = head.toRange(tail);
+    this.splitMarkers(range).forEach(m => this.removeMarker(m));
 
-    return new Position(section, headSectionOffset);
+    return head;
   }
 
   _coalesceMarkers(section) {
@@ -336,25 +323,28 @@ class PostEditor {
     forEach(groups, group => {
       let list = group[0];
       forEach(group, listSection => {
-        if (listSection !== list) {
-          let currentHead = range.head;
-          let prevPosition;
-          // FIXME is there a currentHead if there is no range?
-          // is the current head a list item in the section
-          if (currentHead.section.isListItem &amp;&amp;
-              currentHead.section.parent === listSection) {
-            prevPosition = list.tailPosition();
-          }
-          this._joinListSections(list, listSection);
-          if (prevPosition) {
-            updatedHead = prevPosition.moveRight();
-          }
+        if (listSection === list) {
+          return;
+        }
+
+        let currentHead = range.head;
+        let prevPosition;
+
+        // FIXME is there a currentHead if there is no range?
+        // is the current head a list item in the section
+        if (!range.isBlank &amp;&amp; currentHead.section.isListItem &amp;&amp;
+            currentHead.section.parent === listSection) {
+          prevPosition = list.tailPosition();
+        }
+        this._joinListSections(list, listSection);
+        if (prevPosition) {
+          updatedHead = prevPosition.move(FORWARD);
         }
       });
     });
 
     if (updatedHead) {
-      this.setRange(new Range(updatedHead, updatedHead, range.direction));
+      this.setRange(updatedHead);
     }
   }
 
@@ -381,221 +371,77 @@ class PostEditor {
   }
 
   /**
-   * Remove a character from a {marker, offset} position, in either
-   * forward or backward (default) direction.
-   *
-   * Usage:
-   *
-   *     let marker = editor.post.sections.head.markers.head;
-   *     // marker has text of "Howdy!"
-   *     editor.run((postEditor) => {
-   *       postEditor.deleteFrom({section, offset: 3});
-   *     });
-   *     // marker has text of "Hody!"
-   *
-   * `deleteFrom` may remove a character from a different marker or join the
-   * marker's section with the previous/next section (depending on the
-   * deletion direction) if direction is `BACKWARD` and the offset is 0,
-   * or direction is `FORWARD` and the offset is equal to the length of the
-   * marker.
-   *
    * @param {Position} position object with {section, offset} the marker and offset to delete from
    * @param {Number} direction The direction to delete in (default is BACKWARD)
    * @return {Position} for positioning the cursor
    * @public
+   * @deprecated after v0.10.3
    */
   deleteFrom(position, direction=DIRECTION.BACKWARD) {
-    if (direction === DIRECTION.BACKWARD) {
-      return this._deleteBackwardFrom(position);
-    } else {
-      return this._deleteForwardFrom(position);
-    }
-  }
-
-  _joinPositionToPreviousSection(position) {
-    const {section } = position;
-    let nextPosition = position.clone();
-
-    assert('Cannot join non-markerable section to previous section',
-           section.isMarkerable);
-
-    if (section.isListItem) {
-      let markupSection = this._changeSectionFromListItem(section, 'p');
-      nextPosition = markupSection.headPosition();
-    } else {
-      const prevSection = section.previousLeafSection();
-
-      if (prevSection) {
-        if (prevSection.isCardSection) {
-          if (section.isBlank) {
-            this.removeSection(section);
-          }
-          nextPosition = prevSection.tailPosition();
-        } else {
-          const { beforeMarker } = prevSection.join(section);
-          this._markDirty(prevSection);
-          this.removeSection(section);
-
-          nextPosition.section = prevSection;
-          nextPosition.offset = beforeMarker ?
-            prevSection.offsetOfMarker(beforeMarker, beforeMarker.length) : 0;
-        }
-      }
-    }
-
-    return nextPosition;
+    deprecate("`postEditor#deleteFrom is deprecated. Use `deleteAtPosition(position, direction=BACKWARD, {unit}={unit: 'char'})` instead");
+    return this.deleteAtPosition(position, direction, {unit: 'char'});
   }
 
   /**
-   * delete 1 character in the FORWARD direction from the given position
-   * @param {Position} position
-   * @private
-   */
-  _deleteForwardFrom(position) {
-    const { section } = position;
-
-    if (section.isBlank) {
-      // remove this section, focus on start of next markerable section
-      const next = section.immediatelyNextMarkerableSection();
-      if (next) {
-        this.removeSection(section);
-        position = next.headPosition();
-      }
-      return position;
-    } else if (position.isTail()) {
-      if (section.isCardSection)  {
-        if (section.next &amp;&amp; section.next.isBlank) {
-          this.removeSection(section.next);
-        }
-        return position;
-      } else {
-        // join next markerable section to this one
-        return this._joinPositionToNextSection(position);
-      }
-    } else {
-      if (section.isCardSection &amp;&amp; position.isHead()) {
-        let newSection = this.builder.createMarkupSection();
-        this.replaceSection(section, newSection);
-        return newSection.headPosition();
-      } else {
-        return this._deleteForwardFromMarkerPosition(position.markerPosition);
-      }
-    }
-  }
-
-  _joinPositionToNextSection(position) {
-    const { section } = position;
-
-    assert('Cannot join non-markerable section to next section',
-           section.isMarkerable);
-
-    const next = section.immediatelyNextMarkerableSection();
-    if (next) {
-      section.join(next);
-      this._markDirty(section);
-      this.removeSection(next);
-    }
-
-    return position;
-  }
-
-  /**
-   * delete 1 character forward from the markerPosition
+   * Delete 1 `unit` (can be 'char' or 'word') in the given `direction` at the given
+   * `position`. In almost all cases this will be equivalent to deleting the range formed
+   * by expanding the position 1 unit in the given direction. The exception is when deleting
+   * backward from the beginning of a list item, which reverts the list item into a markup section
+   * instead of joining it with its previous list item (if any).
    *
-   * @param {Object} markerPosition
-   * @param {Marker} markerPosition.marker
-   * @param {number} markerPosition.offset
-   * @return {Position} The position the cursor should be put after this deletion
-   * @private
+   * Usage:
+   *
+   *     let position = section.tailPosition();
+   *     // Section has text of "Howdy!"
+   *     editor.run((postEditor) => {
+   *       postEditor.deleteAtPosition(position);
+   *     });
+   *     // section has text of "Howdy"
+   *
+   * @param {Position} position The position to delete at
+   * @param {Direction} [direction=DIRECTION.BACKWARD] direction The direction to delete in
+   * @param {Object} [options]
+   * @param {String} [options.unit="char"] The unit of deletion ("word" or "char")
+   * @return {Position}
    */
-  _deleteForwardFromMarkerPosition(markerPosition) {
-    const {marker, offset} = markerPosition;
-    const {section} = marker;
-    let nextPosition = new Position(section, section.offsetOfMarker(marker, offset));
-
-    if (offset === marker.length) {
-      const nextMarker = marker.next;
-
-      if (nextMarker) {
-        const nextMarkerPosition = {marker: nextMarker, offset: 0};
-        return this._deleteForwardFromMarkerPosition(nextMarkerPosition);
-      } else {
-        const nextSection = marker.section.next;
-        if (nextSection &amp;&amp; nextSection.isMarkupSection) {
-          const currentSection = marker.section;
-
-          currentSection.join(nextSection);
-          this._markDirty(currentSection);
-
-          this.removeSection(nextSection);
-        }
-      }
-    } else if (marker.isAtom) { // atoms are deleted "atomically"
-      this.removeMarker(marker);
+  deleteAtPosition(position, direction=DIRECTION.BACKWARD, {unit}={unit: 'char'}) {
+    if (direction === DIRECTION.BACKWARD) {
+      return this._deleteAtPositionBackward(position, unit);
     } else {
-      marker.deleteValueAtOffset(offset);
-      this._markDirty(marker);
+      return this._deleteAtPositionForward(position, unit);
     }
-
-    return nextPosition;
   }
 
-  /**
-   * delete 1 character in the BACKWARD direction from the given position
-   * @param {Position} position
-   * @return {Position} The position the cursor should be put after this deletion
-   * @private
-   */
-  _deleteBackwardFrom(position) {
-    const { section } = position;
-
-    if (position.isHead()) {
-      if (section.isCardSection) {
-        if (section.prev &amp;&amp; section.prev.isBlank) {
-          this.removeSection(section.prev);
-        }
-        return position;
-      } else {
-        return this._joinPositionToPreviousSection(position);
-      }
-    }
-
-    // if position is end of a card, replace the card with a blank markup section
-    if (section.isCardSection) {
-      let newSection = this.builder.createMarkupSection();
-      this.replaceSection(section, newSection);
-      return newSection.headPosition();
-    }
-
-    let nextPosition = position.moveLeft();
-
-    const { marker, offset:markerOffset } = position.markerPosition;
-    const offsetToDeleteAt = markerOffset - 1;
-
-    if (marker.isAtom) {
-      this.removeMarker(marker);
+  _deleteAtPositionBackward(position, unit) {
+    if (position.isHead() &amp;&amp; position.section.isListItem) {
+      this.toggleSection('p', position);
+      return this._range.head;
     } else {
-      marker.deleteValueAtOffset(offsetToDeleteAt);
-      this._markDirty(marker);
+      let prevPosition = unit === 'word' ? position.moveWord(BACKWARD) : position.move(BACKWARD);
+      let range = prevPosition.toRange(position);
+      return this.deleteRange(range);
     }
+  }
 
-    return nextPosition;
+  _deleteAtPositionForward(position, unit) {
+    let nextPosition = unit === 'word' ? position.moveWord(FORWARD) : position.move(FORWARD);
+    let range = position.toRange(nextPosition);
+    return this.deleteRange(range);
   }
 
   /**
    * Split markers at two positions, once at the head, and if necessary once
-   * at the tail. This method is designed to accept a range
-   * (e.g. `editor.range`) as an argument.
+   * at the tail.
    *
    * Usage:
    * ```
-   *     let markerRange = this.cursor.offsets;
+   *     let range = editor.range;
    *     editor.run((postEditor) => {
-   *       postEditor.splitMarkers(markerRange);
+   *       postEditor.splitMarkers(range);
    *     });
    * ```
    * The return value will be marker object completely inside the offsets
-   * provided. Markers on the outside of the split may also have been modified.
+   * provided. Markers outside of the split may also have been modified.
    *
    * @param {Range} markerRange
    * @return {Array} of markers that are inside the split
@@ -616,29 +462,6 @@ class PostEditor {
     edit.removed.forEach(m => this.removeMarker(m));
   }
 
-  splitMarker(marker, offset) {
-    let beforeMarker, afterMarker;
-
-    if (offset === 0) {
-      beforeMarker = marker.prev;
-      afterMarker = marker;
-    } else if (offset === marker.length) {
-      beforeMarker = marker;
-      afterMarker = marker.next;
-    } else {
-      let { builder } = this.editor,
-          { section } = marker;
-      beforeMarker = builder.createMarker(marker.value.substring(0, offset), marker.markups);
-      afterMarker = builder.createMarker(marker.value.substring(offset, marker.length), marker.markups);
-      section.markers.splice(marker, 1, [beforeMarker, afterMarker]);
-
-      this.removeMarker(marker);
-      this._markDirty(section);
-    }
-
-    return { beforeMarker, afterMarker };
-  }
-
   /**
    * Split the section at the position.
    *
@@ -656,7 +479,7 @@ class PostEditor {
    * headMarkerOffset is 0.
    *
    * @param {Position} position
-   * @return {Array} new sections, one for the first half and one for the second
+   * @return {Array} new sections, one for the first half and one for the second (either one can be null)
    * @public
    */
   splitSection(position) {
@@ -796,8 +619,8 @@ class PostEditor {
     this._coalesceMarkers(section);
     this._markDirty(section);
 
-    let nextPosition = new Position(position.section, offset);
-    this.setRange(new Range(nextPosition));
+    let nextPosition = section.toPosition(offset);
+    this.setRange(nextPosition);
     return nextPosition;
   }
 
@@ -864,21 +687,35 @@ class PostEditor {
    *     // Will result some markers possibly being split, and the markup
    *     // being applied to all markers between the split.
    *
-   * The return value will be all markers between the split, the same return
-   * value as `splitMarkers`.
-   *
    * @param {Range} range
    * @param {Markup} markup A markup post abstract node
    * @public
    */
   addMarkupToRange(range, markup) {
-    if (range.isCollapsed) {
-      return;
+    if (range.isCollapsed) { return; }
+
+    let markers = this.splitMarkers(range);
+    if (markers.length) {
+      // We insert the new markup at a consistent index across the range.
+      // If we just push on the end of the list, it can end up in different positions
+      // of the markup stack. This results in unnecessary closing and re-opening of
+      // the markup each time it changes position.
+      // If we just push it at the beginning of the list, this causes unnecessary closing
+      // and re-opening of surrounding tags.
+      // So, we look for any tags open across the whole range, and push into the stack
+      // at the end of those.
+      // Prompted by https://github.com/bustlelabs/mobiledoc-kit/issues/360
+
+      let markupsOpenAcrossRange = reduce(markers, function (soFar, marker) {
+        return commonItems(soFar, marker.markups);
+      }, markers[0].markups);
+      let indexToInsert = markupsOpenAcrossRange.length;
+
+      markers.forEach(marker => {
+        marker.addMarkupAtIndex(markup, indexToInsert);
+        this._markDirty(marker);
+      });
     }
-    this.splitMarkers(range).forEach(marker => {
-      marker.addMarkup(markup);
-      this._markDirty(marker);
-    });
   }
 
   /**
@@ -901,9 +738,8 @@ class PostEditor {
    * @private
    */
   removeMarkupFromRange(range, markupOrMarkupCallback) {
-    if (range.isCollapsed) {
-      return;
-    }
+    if (range.isCollapsed) { return; }
+
     this.splitMarkers(range).forEach(marker => {
       marker.removeMarkup(markupOrMarkupCallback);
       this._markDirty(marker);
@@ -911,9 +747,9 @@ class PostEditor {
   }
 
   /**
-   * Toggle the given markup on the current selection. If anything in the current
-   * selection has the markup, the markup will be removed from it. If nothing in the selection
-   * has the markup, the markup will be added to everything in the selection.
+   * Toggle the given markup in the given range (or at the position given). If the range/position
+   * has the markup, the markup will be removed. If nothing in the range/position
+   * has the markup, the markup will be added to everything in the range/position.
    *
    * Usage:
    * ```
@@ -930,10 +766,11 @@ class PostEditor {
    * @param {Markup|String} markupOrString Either a markup object created using
    * the builder (useful when adding a markup with attributes, like an 'a' markup),
    * or, if a string, the tag name of the markup (e.g. 'strong', 'em') to toggle.
-   * @param {Range} range in which to toggle, defaults to current editor range
+   * @param {Range|Position} range in which to toggle. Defaults to current editor range.
    * @public
    */
   toggleMarkup(markupOrMarkupString, range=this._range) {
+    range = toRange(range);
     const markup = typeof markupOrMarkupString === 'string' ?
                      this.builder.createMarkup(markupOrMarkupString) :
                      markupOrMarkupString;
@@ -952,17 +789,19 @@ class PostEditor {
   }
 
   /**
-   * Toggles the tagName of the active section or sections.
+   * Toggles the tagName of the active section or sections in the given range/position.
    * If every section has the tag name, they will all be reset to default sections.
    * Otherwise, every section will be changed to the requested type
    *
    * @param {String} sectionTagName A valid markup section or
    *        list section tag name (e.g. 'blockquote', 'h2', 'ul')
-   * @param {Range} range The range over which to toggle.
-   *        Defaults to the current editor's offsets
+   * @param {Range|Position} range The range over which to toggle.
+   *        Defaults to the current editor range.
    * @public
    */
   toggleSection(sectionTagName, range=this._range) {
+    range = toRange(range);
+
     sectionTagName = normalizeTagName(sectionTagName);
     let { post } = this.editor;
     let nextRange = range;
@@ -982,7 +821,7 @@ class PostEditor {
     });
 
     if (firstChanged) {
-      nextRange = new Range(firstChanged.headPosition());
+      nextRange = firstChanged.headPosition().toRange();
     }
     this.setRange(nextRange);
   }
@@ -1014,8 +853,10 @@ class PostEditor {
 
   /**
    * Splits the item at the position given.
-   * If thse position is at the start or end of the item, the pre- or post-item
+   * If the position is at the start or end of the item, the pre- or post-item
    * will contain a single empty ("") marker.
+   * @param {ListItem} item
+   * @param {Position} position
    * @return {Array} the pre-item and post-item on either side of the split
    * @private
    */
@@ -1062,33 +903,26 @@ class PostEditor {
       position = pre.tailPosition();
     }
 
-    let positionIsStart = position.isEqual(list.headPosition()),
-        positionIsEnd   = position.isEqual(list.tailPosition());
+    let preList  = this.builder.createListSection(list.tagName);
+    let postList = this.builder.createListSection(list.tagName);
 
-    if (positionIsStart || positionIsEnd) {
-      let blank = this.builder.createListSection(list.tagName);
-      let reference = position.isEqual(list.headPosition()) ? list :
-                                                              list.next;
-      let collection = this.editor.post.sections;
-      this.insertSectionBefore(collection, blank, reference);
+    let preItem = position.section;
+    let currentList = preList;
+    list.items.forEach(item => {
+      // If this item matches the start item and the position is at its start,
+      // it should be appended to the postList instead of the preList
+      if (item === preItem &amp;&amp; position.isEqual(item.headPosition())) {
+        currentList = postList;
+      }
+      currentList.items.append(item.clone());
+      // If we just appended the preItem, append the remaining items to the postList
+      if (item === preItem) {
+        currentList = postList;
+      }
+    });
 
-      let lists = positionIsStart ? [blank, list] : [list, blank];
-      return lists;
-    } else {
-      let preList  = this.builder.createListSection(list.tagName),
-          postList = this.builder.createListSection(list.tagName);
-      let preItem = position.section;
-      let currentList = preList;
-      list.items.forEach(item => {
-        currentList.items.append(item.clone());
-        if (item === preItem) {
-          currentList = postList;
-        }
-      });
-
-      this._replaceSection(list, [preList, postList]);
-      return [preList, postList];
-    }
+    this._replaceSection(list, [preList, postList]);
+    return [preList, postList];
   }
 
   /**
@@ -1356,8 +1190,6 @@ class PostEditor {
     this._didComplete = true;
     this.runCallbacks(CALLBACK_QUEUES.COMPLETE);
     this.runCallbacks(CALLBACK_QUEUES.AFTER_COMPLETE);
-
-    this.editor._notifyRangeChange();
   }
 
   undoLastChange() {
@@ -1384,13 +1216,13 @@ export default PostEditor;
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#Direction">Direction</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-UI.html">UI</a></li></ul><h3>Classes</h3><ul><li><a href="Editor.html">Editor</a></li><li><a href="Key.html">Key</a></li><li><a href="Position.html">Position</a></li><li><a href="Post.html">Post</a></li><li><a href="PostEditor.html">PostEditor</a></li><li><a href="PostNodeBuilder.html">PostNodeBuilder</a></li><li><a href="Range.html">Range</a></li></ul><h3>Global</h3><ul><li><a href="global.html#_handleMutations">_handleMutations</a></li><li><a href="global.html#Direction">Direction</a></li><li><a href="global.html#findRenderNodeFromElement">findRenderNodeFromElement</a></li><li><a href="global.html#headPosition">headPosition</a></li><li><a href="global.html#isDirty">isDirty</a></li><li><a href="global.html#join">join</a></li><li><a href="global.html#markersFor">markersFor</a></li><li><a href="global.html#offsetOfMarker">offsetOfMarker</a></li><li><a href="global.html#parse">parse</a></li><li><a href="global.html#replaceWithHeaderSection">replaceWithHeaderSection</a></li><li><a href="global.html#replaceWithListSection">replaceWithListSection</a></li><li><a href="global.html#splitMarkerAtOffset">splitMarkerAtOffset</a></li><li><a href="global.html#tailPosition">tailPosition</a></li><li><a href="global.html#toPosition">toPosition</a></li><li><a href="global.html#toRange">toRange</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.0</a> on Tue May 10 2016 14:22:55 GMT-0400 (EDT)
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.2</a> on Thu Nov 03 2016 18:21:57 GMT-0400 (EDT)
 </footer>
 
 <script> prettyPrint(); </script>
