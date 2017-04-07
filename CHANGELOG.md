@@ -1,36 +1,28 @@
-<a name="0.10.15"></a>
-## 0.10.15 (2017-03-10)
+<a name="0.10.16"></a>
+## 0.10.16 (2017-04-07)
 
+* 0.10.14 ([441897f](https://github.com/bustlelabs/mobiledoc-kit/commit/441897f))
+* 0.10.14-0 ([a13748a](https://github.com/bustlelabs/mobiledoc-kit/commit/a13748a))
+* 0.10.15 ([91041c7](https://github.com/bustlelabs/mobiledoc-kit/commit/91041c7))
+* Allows users to add an optional `name` attribute to a keyCommand object as passed to the `registerKe ([0cc12d3](https://github.com/bustlelabs/mobiledoc-kit/commit/0cc12d3))
+* Bump saucie and other deps ([88b98dc](https://github.com/bustlelabs/mobiledoc-kit/commit/88b98dc))
+* Default tests to run on all IPs ([a5c5f2a](https://github.com/bustlelabs/mobiledoc-kit/commit/a5c5f2a))
+* fix github url at demo page (#536) ([4fd6cf0](https://github.com/bustlelabs/mobiledoc-kit/commit/4fd6cf0)), closes [#536](https://github.com/bustlelabs/mobiledoc-kit/issues/536)
+* Fixed broken logo link and removed Gitter link ([5179440](https://github.com/bustlelabs/mobiledoc-kit/commit/5179440))
+* Grouped undo and redo statements. refs #502 ([ce4d8d4](https://github.com/bustlelabs/mobiledoc-kit/commit/ce4d8d4))
+* Install phantom after yarn ([c98ba15](https://github.com/bustlelabs/mobiledoc-kit/commit/c98ba15))
+* Made content more explicit. ([a94190a](https://github.com/bustlelabs/mobiledoc-kit/commit/a94190a))
+* Mobiledoc format 0.3.1, new section and markup tags ([57670bb](https://github.com/bustlelabs/mobiledoc-kit/commit/57670bb))
+* Patch section parser to parse leaf nodes for TDB ETL ([481b7c7](https://github.com/bustlelabs/mobiledoc-kit/commit/481b7c7))
+* Refactor undo/redo tests to avoid timeouts ([9a5244a](https://github.com/bustlelabs/mobiledoc-kit/commit/9a5244a))
+* Replaced gitter with slack. ([daa81dc](https://github.com/bustlelabs/mobiledoc-kit/commit/daa81dc))
+* fix(486): Constrain selection to editor element when probing for range (#542) ([9b7f58c](https://github.com/bustlelabs/mobiledoc-kit/commit/9b7f58c)), closes [#486](https://github.com/bustlelabs/mobiledoc-kit/issues/486)
 * chore: Replace deprecated mobiledoc-html-renderer with mobiledoc-dom-renderer (#538) ([2295cfc](https://github.com/bustlelabs/mobiledoc-kit/commit/2295cfc))
 * chore: Upgrade broccoli dependencies (#539) ([3155800](https://github.com/bustlelabs/mobiledoc-kit/commit/3155800))
 * chore: Upgrade saucie to latest (#540) ([9662756](https://github.com/bustlelabs/mobiledoc-kit/commit/9662756))
+* chore(tests): Ensure TestLoader module load failures are counted as test failures (#541) ([749eec0](https://github.com/bustlelabs/mobiledoc-kit/commit/749eec0))
 * style(css): Drop LESS dependency (#537) ([e9d0276](https://github.com/bustlelabs/mobiledoc-kit/commit/e9d0276))
-* Allows users to add an optional `name` attribute to a keyCommand object as passed to the `registerKe ([0cc12d3](https://github.com/bustlelabs/mobiledoc-kit/commit/0cc12d3))
-* fix github url at demo page (#536) ([4fd6cf0](https://github.com/bustlelabs/mobiledoc-kit/commit/4fd6cf0)), closes [#536](https://github.com/bustlelabs/mobiledoc-kit/issues/536)
-* Fixed broken logo link and removed Gitter link ([5179440](https://github.com/bustlelabs/mobiledoc-kit/commit/5179440))
-* Made content more explicit. ([a94190a](https://github.com/bustlelabs/mobiledoc-kit/commit/a94190a))
-* Replaced gitter with slack. ([daa81dc](https://github.com/bustlelabs/mobiledoc-kit/commit/daa81dc))
 * docs(README): added vue-mobiledoc-editor to library options (#531) ([c0d4cf3](https://github.com/bustlelabs/mobiledoc-kit/commit/c0d4cf3))
-
-
-
-<a name="0.10.14"></a>
-## 0.10.14 (2017-02-11)
-
-* 0.10.14 ([441897f](https://github.com/bustlelabs/mobiledoc-kit/commit/441897f))
-
-
-
-<a name="0.10.14-0"></a>
-## 0.10.14-0 (2016-11-17)
-
-* 0.10.14-0 ([a13748a](https://github.com/bustlelabs/mobiledoc-kit/commit/a13748a))
-* Bump saucie and other deps ([88b98dc](https://github.com/bustlelabs/mobiledoc-kit/commit/88b98dc))
-* Default tests to run on all IPs ([a5c5f2a](https://github.com/bustlelabs/mobiledoc-kit/commit/a5c5f2a))
-* Grouped undo and redo statements. refs #502 ([ce4d8d4](https://github.com/bustlelabs/mobiledoc-kit/commit/ce4d8d4))
-* Install phantom after yarn ([c98ba15](https://github.com/bustlelabs/mobiledoc-kit/commit/c98ba15))
-* Mobiledoc format 0.3.1, new section and markup tags ([57670bb](https://github.com/bustlelabs/mobiledoc-kit/commit/57670bb))
-* Refactor undo/redo tests to avoid timeouts ([9a5244a](https://github.com/bustlelabs/mobiledoc-kit/commit/9a5244a))
 
 
 
