@@ -1,5 +1,5 @@
 {
-  "name": "mobiledoc-kit",
+  "name": "@dailybeast/mobiledoc-kit",
   "version": "0.10.16",
   "description": "A toolkit for building WYSIWYG editors with Mobiledoc",
   "repository": "https://github.com/bustlelabs/mobiledoc-kit",

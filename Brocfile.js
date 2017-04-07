@@ -18,7 +18,7 @@ var vendoredModules = [
 
 var cssFiles = new Funnel("src/css", { destDir: "css" });
 
-var packageName = require("./package.json").name;
+var packageName = 'mobiledoc-kit'; //require("./package.json").name;
 
 var buildOptions = {
   libDirName: "src/js",
@@ -48,4 +48,3 @@ module.exports = mergeTrees([
   testTree,
   demoTree()
 ]);
-
